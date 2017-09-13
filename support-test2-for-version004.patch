@@ -1,0 +1,47 @@
+--- Color.pm	2013-05-14 14:36:22.000000000 +0900
++++ lib/Test/More/Color.pm	2017-09-13 16:10:05.000000000 +0900
+@@ -27,12 +27,20 @@ Test::More::Color - Very stupid TAP colo
+ 	# If exists color lib
+ 	eval { require Term::ANSIColor };
+ 	unless ( $@ ) {
+-		DEBUG && warn __PACKAGE__, " \&Test::Builder::_print attacks";
+ 		no strict 'refs';
+ 		no warnings 'redefine';
+-		$old_print = \&Test::Builder::_print;
+-		*Test::Builder::_print = \&color_print;
+ 		*c = \&Term::ANSIColor::color;
++		if ($INC{'Test2/API.pm'}) {
++			DEBUG && warn __PACKAGE__, " \&Test2::Formatter::TAP::print_optimal_pass,event_tap attacks";
++			*Test2::Formatter::TAP::print_optimal_pass = sub {};
++			$old_print = \&Test2::Formatter::TAP::event_tap;
++			*Test2::Formatter::TAP::event_tap = \&color_print_with_test2;
++		}
++		else {
++			DEBUG && warn __PACKAGE__, " \&Test::Builder::_print attacks";
++			$old_print = \&Test::Builder::_print;
++			*Test::Builder::_print = \&color_print;
++		}
+ 	}
+ 
+ 	sub OK		{ $fg ? c("green")	: c("black").c("on_green")	}
+@@ -53,8 +61,20 @@ Test::More::Color - Very stupid TAP colo
+ 		$_[1] =~ s/^((not)?\s*ok\s*\d+)/( $2 ? NOT_OK : OK ) . $1 . RESET/e
+ 			unless -p $_[0]->output;
+ 		$old_print->(@_);
++        }
++	sub color_print_with_test2 {
++		DEBUG && warn __PACKAGE__, "::bgcolor_print ", $_[1];
++		my @tap = $old_print->(@_);
++		# Colorer if don't pipe
++		return @tap if (grep { -p $_ } @{$_[0]->{handles}});
++
++		for my $tap (@tap) {
++			$tap->[1] =~ s/^((not)?\s*ok\s*\d+)/( $2 ? NOT_OK : OK ) . $1 . RESET/e;
++		}
++		return @tap;
+ 	}
+ 
++
+ =head1 AUTHOR
+ 
+ coolmen, C<< <coolmen78 at google.com> >>
